@@ -16,8 +16,9 @@ async def insert_book(title: str, summary: str, embedding: list, json_content: d
         "json_content": json_content
     }
 
-    return supabase.table("books").insert(data).execute()
+    response = supabase.table("books").insert(data).execute()
 
+    return response.data[0]
 
 async def find_similar(embedding: list, threshold: float = 0.88):
     response = supabase.rpc(
