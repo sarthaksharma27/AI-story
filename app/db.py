@@ -31,3 +31,21 @@ async def find_similar(embedding: list, threshold: float = 0.88):
     ).execute()
 
     return response
+
+async def insert_chunk(book_id, content, embedding):
+    return supabase.table("book_chunks").insert({
+        "book_id": book_id,
+        "content": content,
+        "embedding": embedding
+    }).execute()
+
+async def find_relevant_chunks(embedding: list, count: int = 5):
+    response = supabase.rpc(
+        "match_chunks",
+        {
+            "query_embedding": embedding,
+            "match_count": count
+        }
+    ).execute()
+
+    return response.data

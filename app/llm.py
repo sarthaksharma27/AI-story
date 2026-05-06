@@ -1,70 +1,72 @@
 import httpx
 import os
 
-from app.config import OPENROUTER_API_KEY
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+LLM_MODEL = "openai/gpt-3.5-turbo"
 
-LLM_MODEL = "meta-llama/llama-3-8b-instruct"
-
-
-SYSTEM_PROMPT = """
-You are an AI that generates structured bilingual books.
-
-Return STRICT JSON only.
-No markdown.
-No explanations.
-No commentary.
-
-Structure:
-
-{
-  "title": string,
-  "summary": string,
-  "chapters": [
-    {
-      "chapter_number": int,
-      "title": string,
-      "content": {
-        "english": string,
-        "spanish": string
-      }
-    }
-  ]
-}
-"""
-
-
-async def generate_book_json(idea: str, rag_context: str = ""):
+async def generate_book_json(idea: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:8000",
-                "X-Title": "AI Book Engine"
+                "Content-Type": "application/json"
             },
             json={
                 "model": LLM_MODEL,
                 "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {
+                        "role": "system",
+                        "content": """Return ONLY valid JSON. You must strictly follow this exact schema:
+{
+  "title": "String",
+  "summary": "String",
+  "chapters": [
+    {
+      "content": {
+        "english": "String",
+        "spanish": "String"
+      }
+    }
+  ]
+}
+Create a bilingual book based on the user's idea."""
+                    },
                     {
                         "role": "user",
-                        "content": f"""
-Idea: {idea}
-
-Ensure the story is meaningfully different from:
-{rag_context}
-
-Generate 3 chapters.
-Return JSON only.
-"""
+                        "content": idea
                     }
-                ],
-                "temperature": 0.7
+                ]
             }
         )
 
         response.raise_for_status()
         data = response.json()
+        return data["choices"][0]["message"]["content"]
 
+async def generate_answer(question: str, context: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": LLM_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Answer ONLY using the provided context. If answer is not in context, say you don't know."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Context:\n{context}\n\nQuestion:\n{question}"
+                    }
+                ]
+            }
+        )
+
+        response.raise_for_status()
+        data = response.json()
         return data["choices"][0]["message"]["content"]
