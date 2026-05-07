@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Bridge Test</title>
+    <style>
+        body { font-family: system-ui; padding: 2rem; background: #111; color: #eee; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+        #transcript { margin-top: 20px; padding: 15px; background: #222; border-radius: 8px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h2>Test: Voice to Story</h2>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop & Process</button>
+    
+    <div id="transcript">Waiting for audio...</div>
+    <br>
+    <audio id="audioPlayback" controls style="display: none;"></audio>
+
+    <script src="app.js"></script>
+</body>
+</html>
