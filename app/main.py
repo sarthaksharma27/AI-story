@@ -93,3 +93,68 @@ async def ask_question(payload: StoryRequest):
         "answer": answer,
         "context_used": chunks
     }
+
+
+@app.post("/generate-from-voice")
+async def generate_from_voice(payload: StoryRequest):
+    """
+    Takes a conversation transcript, extracts the ideas, and generates a book safely.
+    """
+    print(f"🎙️ Received voice transcript: {payload.idea}")
+    
+    # 1. Strict Prompting
+    enhanced_prompt = (
+        "You are an AI story generator. Two users had a brainstorming conversation. "
+        "Extract their core ideas from the transcript below and write a bilingual book. "
+        "CRITICAL: You MUST strictly follow the JSON schema provided in the system instructions, "
+        "including both 'english' and 'spanish' keys. Return ONLY valid JSON.\n\n"
+        f"TRANSCRIPT:\n{payload.idea}"
+    )
+
+    raw_output = await generate_book_json(enhanced_prompt)
+    raw_output = clean_llm_output(raw_output)
+
+    try:
+        book_json = json.loads(raw_output)
+    except json.JSONDecodeError:
+        print("⚠️ JSON Parse failed, retrying LLM generation...")
+        raw_output_retry = await generate_book_json(enhanced_prompt)
+        raw_output_retry = clean_llm_output(raw_output_retry)
+        book_json = json.loads(raw_output_retry)
+
+    embedding = await generate_embedding(payload.idea)
+
+    # 2. Defensive Dictionary Access (The Senior Fix)
+    title = book_json.get("title", "Untitled Story")
+    summary = book_json.get("summary", "No summary generated.")
+
+    inserted = await insert_book(
+        title=title,
+        summary=summary,
+        embedding=embedding,
+        json_content=book_json
+    )
+
+    full_text = ""
+    chapters = book_json.get("chapters", [])
+    
+    for chapter in chapters:
+        content = chapter.get("content", {})
+        english_text = content.get("english", "")
+        spanish_text = content.get("spanish", "")
+        
+        if english_text: full_text += english_text + "\n"
+        if spanish_text: full_text += spanish_text + "\n"
+
+    # Only chunk and insert if we actually got text back
+    if full_text.strip():
+        chunks = chunk_text(full_text)
+        for chunk in chunks:
+            chunk_embedding = await generate_embedding(chunk)
+            await insert_chunk(inserted["id"], chunk, chunk_embedding)
+
+    return {
+        "status": "book_created",
+        "id": inserted["id"],
+        "book": book_json
+    }

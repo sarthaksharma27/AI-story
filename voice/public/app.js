@@ -14,12 +14,11 @@ const canvasCtx = canvas.getContext('2d');
 // 1. Populate Microphone Dropdown on Load
 async function getMicrophones() {
     try {
-        // We must ask for initial permission to see the real names of the devices
         await navigator.mediaDevices.getUserMedia({ audio: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
         const audioInputs = devices.filter(device => device.kind === 'audioinput');
         
-        micSelect.innerHTML = ''; // Clear loading text
+        micSelect.innerHTML = ''; 
         
         audioInputs.forEach(mic => {
             const option = document.createElement('option');
@@ -32,16 +31,13 @@ async function getMicrophones() {
         console.error("Mic access error:", err);
     }
 }
-// Run immediately on page load
 getMicrophones();
 
 // 2. The Visualizer Drawing Function
 function drawVisualizer() {
-    // Canvas setup
     const width = canvas.width = canvas.offsetWidth;
     const height = canvas.height = canvas.offsetHeight;
     
-    // Get audio data
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     
@@ -49,12 +45,11 @@ function drawVisualizer() {
         visualizerAnimationId = requestAnimationFrame(draw);
         analyser.getByteTimeDomainData(dataArray);
 
-        // Clear previous frame
         canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
         canvasCtx.fillRect(0, 0, width, height);
         
         canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = '#00f2fe'; // Neon blue wave
+        canvasCtx.strokeStyle = '#00f2fe'; 
         canvasCtx.beginPath();
 
         const sliceWidth = width * 1.0 / bufferLength;
@@ -82,18 +77,17 @@ function drawVisualizer() {
 startBtn.onclick = async () => {
     try {
         const selectedMicId = micSelect.value;
-        // Request the EXACT microphone the user chose from the dropdown
         const stream = await navigator.mediaDevices.getUserMedia({ 
             audio: { deviceId: selectedMicId ? { exact: selectedMicId } : undefined } 
         });
         
-        // Setup Web Audio API for the visualizer
+        // Setup Visualizer
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
-        analyser.fftSize = 2048; // Resolution of the wave
-        drawVisualizer(); // Start drawing
+        analyser.fftSize = 2048; 
+        drawVisualizer(); 
 
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
@@ -103,15 +97,14 @@ startBtn.onclick = async () => {
         };
 
         mediaRecorder.onstop = async () => {
-            // Stop the visualizer wave
             cancelAnimationFrame(visualizerAnimationId);
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             if (audioContext.state !== 'closed') audioContext.close();
 
-            transcriptDiv.innerText = "Processing audio... watch the console!";
+            transcriptDiv.innerText = "Processing audio with Deepgram and FastAPI... please wait.";
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
-            // Setup local playback
+            // Local playback for testing
             const audioUrl = URL.createObjectURL(audioBlob);
             const player = document.getElementById('audioPlayback');
             player.src = audioUrl;
@@ -121,6 +114,7 @@ startBtn.onclick = async () => {
             formData.append('audio', audioBlob, 'recording.webm');
 
             try {
+                // Send to Node.js backend
                 const response = await fetch('http://localhost:3000/process-audio', {
                     method: 'POST',
                     body: formData
@@ -132,13 +126,45 @@ startBtn.onclick = async () => {
                 }
 
                 const data = await response.json();
-                transcriptDiv.innerText = data.transcript;
+                
+                // --- UPDATED: DISPLAY THE FULL STORY ---
+                let finalText = `📜 TRANSCRIPT:\n${data.transcript}\n\n`;
+                
+                if (data.book) {
+                    finalText += `====================================\n`;
+                    finalText += `📚 ${data.book.title.toUpperCase()}\n`;
+                    finalText += `====================================\n`;
+                    finalText += `Summary: ${data.book.summary}\n\n`;
+
+                    // Senior Move: Loop through the chapters array
+                    if (data.book.chapters && data.book.chapters.length > 0) {
+                        data.book.chapters.forEach((chapter, index) => {
+                            finalText += `📖 CHAPTER ${index + 1}\n`;
+                            finalText += `------------------------------------\n`;
+                            
+                            // Using .get style logic in JS to prevent crashes
+                            const content = chapter.content || {};
+                            const english = content.english || "Text missing...";
+                            const spanish = content.spanish || "Texto faltante...";
+                            
+                            finalText += `🇺🇸 ${english}\n\n`;
+                            finalText += `🇪🇸 ${spanish}\n`;
+                            finalText += `------------------------------------\n\n`;
+                        });
+                    }
+                    finalText += `✅ Story complete and saved to Vector DB.`;
+                } else if (data.error) {
+                    finalText += `❌ System Error: ${data.error}`;
+                }
+
+                transcriptDiv.innerText = finalText;
+
             } catch (error) {
                 console.error("Frontend Fetch Error:", error);
                 transcriptDiv.innerText = "Error: " + error.message;
             }
             
-            // Stop all microphone tracks to release the hardware
+            // Release hardware
             stream.getTracks().forEach(track => track.stop());
         };
 

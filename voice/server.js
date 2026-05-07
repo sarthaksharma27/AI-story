@@ -4,7 +4,6 @@ const multer = require('multer');
 const cors = require('cors');
 
 const app = express();
-
 app.use(cors());
 app.use(express.static('public')); 
 
@@ -17,14 +16,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/process-audio', upload.single('audio'), async (req, res) => {
     try {
-        console.log("Step 1: Route hit. Did multer find the file?", req.file ? "YES" : "NO");
-        if (!req.file) {
-            return res.status(400).json({ error: "No audio file received" });
-        }
+        if (!req.file) return res.status(400).json({ error: "No audio file received" });
 
-        console.log(`Step 2: File size is ${req.file.size} bytes. Hitting Deepgram API directly...`);
+        console.log(`Step 1: File size is ${req.file.size} bytes. Hitting Deepgram...`);
         
-        // SENIOR MOVE: Explicitly pass the mimetype in the URL to help Deepgram decode the .webm file
         const mimetype = req.file.mimetype || 'audio/webm';
         const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&mimetype=${encodeURIComponent(mimetype)}`;
         
@@ -32,48 +27,24 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
             method: 'POST',
             headers: {
                 'Authorization': `Token ${process.env.DEEPGRAM_API_KEY}`,
-                'Content-Type': mimetype // Ensure headers match the URL
+                'Content-Type': mimetype 
             },
             body: req.file.buffer
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Deepgram API returned ${response.status}: ${errorText}`);
-        }
-
+        if (!response.ok) throw new Error(`Deepgram API returned ${response.status}`);
         const result = await response.json();
-        console.log("Step 3: Deepgram success. Analyzing raw response...");
 
-        // ==========================================
-        // 🛑 SENIOR DEBUGGING: DUMP THE RAW JSON
-        // ==========================================
         const alt = result.results?.channels?.[0]?.alternatives?.[0];
-        
-        if (!alt) {
-            console.log("\n❌ CRITICAL: Deepgram returned a weird JSON shape:");
-            console.log(JSON.stringify(result, null, 2));
-            return res.json({ error: "Bad JSON from Deepgram" });
+        if (!alt || !alt.words || alt.words.length === 0) {
+            return res.json({ status: 'success', transcript: "", error: "No words detected in audio." });
         }
 
-        console.log("\n================ RAW DEEPGRAM DATA ================");
-        console.log("Raw Transcript String:", alt.transcript);
-        console.log("Did it detect words?", alt.words ? `Yes, ${alt.words.length} words` : "No words array found.");
-        console.log("=====================================================\n");
-
-        if (!alt.words || alt.words.length === 0) {
-            console.log("🚨 WARNING: Deepgram processed the file but heard NO WORDS. Your microphone might be recording silence.");
-            return res.json({ status: 'success', transcript: "" });
-        }
-
-        // If we DO have words, let's do our formatting
         let formattedTranscript = "";
         let currentSpeaker = -1;
 
         alt.words.forEach(word => {
-            // Provide a fallback if diarize didn't assign a speaker
             const speakerLabel = word.speaker !== undefined ? word.speaker : "Unknown";
-            
             if (speakerLabel !== currentSpeaker) {
                 formattedTranscript += `\nSpeaker ${speakerLabel}: `;
                 currentSpeaker = speakerLabel;
@@ -81,16 +52,36 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
             formattedTranscript += `${word.punctuated_word} `;
         });
 
-        console.log("Step 4: Transcript formatted! Sending back to frontend.");
-        res.json({ status: 'success', transcript: formattedTranscript.trim() });
+        const finalTranscript = formattedTranscript.trim();
+        console.log("Step 2: Transcript formatted. Sending to FastAPI...");
+        
+        try {
+            const fastApiUrl = 'http://127.0.0.1:8000/generate-from-voice'; 
+            const aiResponse = await fetch(fastApiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idea: finalTranscript })
+            });
+
+            if (!aiResponse.ok) throw new Error(`FastAPI returned ${aiResponse.status}`);
+            const storyData = await aiResponse.json();
+            
+            console.log("✅ Step 3: FastAPI generated the book!");
+            res.json({ status: 'success', transcript: finalTranscript, book: storyData.book });
+
+        } catch (fastApiError) {
+            console.error("❌ Failed to reach FastAPI:", fastApiError);
+            res.status(500).json({ 
+                status: 'partial_success', 
+                transcript: finalTranscript,
+                error: "Audio processed, but failed to reach Python AI."
+            });
+        }
 
     } catch (err) {
-        console.error("❌ BACKEND ERROR:", err.message || err);
-        res.status(500).json({ error: err.message || "Internal Server Error" });
+        console.error("❌ BACKEND ERROR:", err);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`\n✅ Voice Bridge backend running at http://localhost:${PORT}`);
-});
+app.listen(3000, () => console.log(`\n✅ Voice Bridge backend running at http://localhost:3000`));
