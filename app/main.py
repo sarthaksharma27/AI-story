@@ -10,15 +10,50 @@ from app.db import (
 )
 from app.chunking import chunk_text
 import json
+import dirtyjson  # Use this for resilient JSON parsing
 
 app = FastAPI(title="AI Bilingual Book Engine")
 
 
 def clean_llm_output(raw: str) -> str:
+    """
+    Refined cleaning logic to strip markdown and handle raw text chatter.
+    """
     raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-    return raw
+    # Handle markdown code blocks specifically
+    if "```json" in raw:
+        raw = raw.split("```json")[1].split("```")[0]
+    elif "```" in raw:
+        raw = raw.split("```")[1].split("```")[0]
+    
+    return raw.strip()
+
+
+async def safe_parse_json(raw_output: str, prompt: str):
+    """
+    Senior Engineer Pattern: A dedicated helper to handle retries and 
+    malformed JSON strings before they crash the main logic.
+    """
+    cleaned = clean_llm_output(raw_output)
+    try:
+        # dirtyjson is much more forgiving than standard json.loads
+        return dirtyjson.loads(cleaned)
+    except Exception as e:
+        print(f"⚠️ Primary JSON parse failed: {e}. Retrying LLM...")
+        
+        # Retry logic
+        raw_retry = await generate_book_json(prompt)
+        cleaned_retry = clean_llm_output(raw_retry)
+        try:
+            return dirtyjson.loads(cleaned_retry)
+        except Exception as e_final:
+            print(f"❌ Critical: LLM failed twice to produce valid JSON: {e_final}")
+            # Return a minimal valid structure to prevent backend crash
+            return {
+                "title": "Generation Error",
+                "summary": "The AI failed to format the response correctly.",
+                "chapters": []
+            }
 
 
 @app.get("/health")
@@ -38,33 +73,27 @@ async def generate_book(payload: StoryRequest):
         }
 
     raw_output = await generate_book_json(payload.idea)
-    raw_output = clean_llm_output(raw_output)
+    book_json = await safe_parse_json(raw_output, payload.idea)
 
-    try:
-        book_json = json.loads(raw_output)
-    except json.JSONDecodeError:
-        raw_output_retry = await generate_book_json(payload.idea)
-        raw_output_retry = clean_llm_output(raw_output_retry)
-        book_json = json.loads(raw_output_retry)
-
+    # Use .get() to avoid KeyErrors
     inserted = await insert_book(
-        title=book_json["title"],
-        summary=book_json["summary"],
+        title=book_json.get("title", "Untitled"),
+        summary=book_json.get("summary", ""),
         embedding=embedding,
         json_content=book_json
     )
 
     full_text = ""
+    for chapter in book_json.get("chapters", []):
+        content = chapter.get("content", {})
+        full_text += content.get("english", "") + "\n"
+        full_text += content.get("spanish", "") + "\n"
 
-    for chapter in book_json["chapters"]:
-        full_text += chapter["content"]["english"] + "\n"
-        full_text += chapter["content"]["spanish"] + "\n"
-
-    chunks = chunk_text(full_text)
-
-    for chunk in chunks:
-        chunk_embedding = await generate_embedding(chunk)
-        await insert_chunk(inserted["id"], chunk, chunk_embedding)
+    if full_text.strip():
+        chunks = chunk_text(full_text)
+        for chunk in chunks:
+            chunk_embedding = await generate_embedding(chunk)
+            await insert_chunk(inserted["id"], chunk, chunk_embedding)
 
     return {
         "status": "book_created",
@@ -76,61 +105,40 @@ async def generate_book(payload: StoryRequest):
 @app.post("/ask")
 async def ask_question(payload: StoryRequest):
     question_embedding = await generate_embedding(payload.idea)
-
     chunks = await find_relevant_chunks(question_embedding)
 
     if not chunks:
-        return {
-            "answer": "No relevant context found",
-            "context_used": []
-        }
+        return {"answer": "No relevant context found", "context_used": []}
 
     context = "\n\n".join([c["content"] for c in chunks])
-
     answer = await generate_answer(payload.idea, context)
 
-    return {
-        "answer": answer,
-        "context_used": chunks
-    }
+    return {"answer": answer, "context_used": chunks}
 
 
 @app.post("/generate-from-voice")
 async def generate_from_voice(payload: StoryRequest):
     """
-    Takes a conversation transcript, extracts the ideas, and generates a book safely.
+    Handles conversational transcripts with defensive parsing and prompting.
     """
     print(f"🎙️ Received voice transcript: {payload.idea}")
     
-    # 1. Strict Prompting
     enhanced_prompt = (
         "You are an AI story generator. Two users had a brainstorming conversation. "
         "Extract their core ideas from the transcript below and write a bilingual book. "
-        "CRITICAL: You MUST strictly follow the JSON schema provided in the system instructions, "
-        "including both 'english' and 'spanish' keys. Return ONLY valid JSON.\n\n"
+        "CRITICAL: You MUST strictly follow the JSON schema provided. "
+        "Ensure no trailing commas are left at the end of objects or arrays. Return ONLY valid JSON.\n\n"
         f"TRANSCRIPT:\n{payload.idea}"
     )
 
     raw_output = await generate_book_json(enhanced_prompt)
-    raw_output = clean_llm_output(raw_output)
-
-    try:
-        book_json = json.loads(raw_output)
-    except json.JSONDecodeError:
-        print("⚠️ JSON Parse failed, retrying LLM generation...")
-        raw_output_retry = await generate_book_json(enhanced_prompt)
-        raw_output_retry = clean_llm_output(raw_output_retry)
-        book_json = json.loads(raw_output_retry)
+    book_json = await safe_parse_json(raw_output, enhanced_prompt)
 
     embedding = await generate_embedding(payload.idea)
 
-    # 2. Defensive Dictionary Access (The Senior Fix)
-    title = book_json.get("title", "Untitled Story")
-    summary = book_json.get("summary", "No summary generated.")
-
     inserted = await insert_book(
-        title=title,
-        summary=summary,
+        title=book_json.get("title", "Untitled Story"),
+        summary=book_json.get("summary", "No summary generated."),
         embedding=embedding,
         json_content=book_json
     )
@@ -146,7 +154,6 @@ async def generate_from_voice(payload: StoryRequest):
         if english_text: full_text += english_text + "\n"
         if spanish_text: full_text += spanish_text + "\n"
 
-    # Only chunk and insert if we actually got text back
     if full_text.strip():
         chunks = chunk_text(full_text)
         for chunk in chunks:
