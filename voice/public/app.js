@@ -11,6 +11,53 @@ const micSelect = document.getElementById('micSelect');
 const canvas = document.getElementById('visualizer');
 const canvasCtx = canvas.getContext('2d');
 
+function renderStory(book, transcript) {
+    transcriptDiv.innerHTML = '';
+
+    const transcriptHeader = document.createElement('h3');
+    transcriptHeader.innerText = "Audio Transcript";
+    transcriptHeader.style.color = "#888";
+    transcriptHeader.style.fontSize = "0.9rem";
+    
+    const transcriptText = document.createElement('p');
+    transcriptText.innerText = transcript;
+    transcriptText.style.fontStyle = "italic";
+    transcriptText.style.marginBottom = "2rem";
+    transcriptText.style.color = "#555";
+
+    const title = document.createElement('h1');
+    title.innerText = book.title;
+    title.style.fontSize = "2.5rem";
+    title.style.marginBottom = "0.5rem";
+
+    const summary = document.createElement('p');
+    summary.innerHTML = `<strong>Summary:</strong> ${book.summary}`;
+    summary.style.marginBottom = "3rem";
+    summary.style.lineHeight = "1.6";
+
+    transcriptDiv.append(transcriptHeader, transcriptText, title, summary);
+
+    if (book.chapters && book.chapters.length > 0) {
+        book.chapters.forEach((chapter, index) => {
+            const chapterWrapper = document.createElement('section');
+            chapterWrapper.style.marginBottom = "3rem";
+
+            const chapTitle = document.createElement('h2');
+            chapTitle.innerText = chapter.chapter_title || `Chapter ${index + 1}`;
+            chapTitle.style.borderBottom = "1px solid #333";
+            chapTitle.style.paddingBottom = "0.5rem";
+
+            const chapContent = document.createElement('p');
+            chapContent.innerText = chapter.content;
+            chapContent.style.lineHeight = "1.8";
+            chapContent.style.whiteSpace = "pre-wrap"; // Preserves paragraph breaks
+
+            chapterWrapper.append(chapTitle, chapContent);
+            transcriptDiv.appendChild(chapterWrapper);
+        });
+    }
+}
+
 async function getMicrophones() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -96,7 +143,7 @@ startBtn.onclick = async () => {
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
             if (audioContext.state !== 'closed') audioContext.close();
 
-            transcriptDiv.innerText = "Processing audio with Deepgram and FastAPI... please wait.";
+            transcriptDiv.innerText = "Generating your 10-chapter story... this may take a moment.";
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
             const audioUrl = URL.createObjectURL(audioBlob);
@@ -120,34 +167,11 @@ startBtn.onclick = async () => {
 
                 const data = await response.json();
                 
-                let finalText = `TRANSCRIPT:\n${data.transcript}\n\n`;
-                
                 if (data.book) {
-                    finalText += `====================================\n`;
-                    finalText += `${data.book.title.toUpperCase()}\n`;
-                    finalText += `====================================\n`;
-                    finalText += `Summary: ${data.book.summary}\n\n`;
-
-                    if (data.book.chapters && data.book.chapters.length > 0) {
-                        data.book.chapters.forEach((chapter, index) => {
-                            finalText += `CHAPTER ${index + 1}\n`;
-                            finalText += `------------------------------------\n`;
-                            
-                            const content = chapter.content || {};
-                            const english = content.english || "Text missing...";
-                            const spanish = content.spanish || "Texto faltante...";
-                            
-                            finalText += `${english}\n\n`;
-                            finalText += `${spanish}\n`;
-                            finalText += `------------------------------------\n\n`;
-                        });
-                    }
-                    finalText += `Story complete and saved to Vector DB.`;
+                    renderStory(data.book, data.transcript);
                 } else if (data.error) {
-                    finalText += `System Error: ${data.error}`;
+                    transcriptDiv.innerText = `System Error: ${data.error}`;
                 }
-
-                transcriptDiv.innerText = finalText;
 
             } catch (error) {
                 transcriptDiv.innerText = "Error: " + error.message;

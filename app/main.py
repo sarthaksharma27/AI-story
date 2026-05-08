@@ -75,7 +75,6 @@ async def generate_book(payload: StoryRequest):
     raw_output = await generate_book_json(payload.idea)
     book_json = await safe_parse_json(raw_output, payload.idea)
 
-    # Use .get() to avoid KeyErrors
     inserted = await insert_book(
         title=book_json.get("title", "Untitled"),
         summary=book_json.get("summary", ""),
@@ -85,9 +84,9 @@ async def generate_book(payload: StoryRequest):
 
     full_text = ""
     for chapter in book_json.get("chapters", []):
-        content = chapter.get("content", {})
-        full_text += content.get("english", "") + "\n"
-        full_text += content.get("spanish", "") + "\n"
+        # chapter["content"] is now a string, not a dict
+        content = chapter.get("content", "")
+        full_text += content + "\n"
 
     if full_text.strip():
         chunks = chunk_text(full_text)
@@ -101,6 +100,46 @@ async def generate_book(payload: StoryRequest):
         "book": book_json
     }
 
+@app.post("/generate-from-voice")
+async def generate_from_voice(payload: StoryRequest):
+    print(f"🎙️ Received voice transcript: {payload.idea}")
+    
+    enhanced_prompt = (
+        "You are an AI story generator. Extract the core ideas from the transcript "
+        "below and write a 10-chapter English book. "
+        "CRITICAL: You MUST strictly follow the JSON schema provided.\n\n"
+        f"TRANSCRIPT:\n{payload.idea}"
+    )
+
+    raw_output = await generate_book_json(enhanced_prompt)
+    book_json = await safe_parse_json(raw_output, enhanced_prompt)
+    embedding = await generate_embedding(payload.idea)
+
+    inserted = await insert_book(
+        title=book_json.get("title", "Untitled Story"),
+        summary=book_json.get("summary", "No summary generated."),
+        embedding=embedding,
+        json_content=book_json
+    )
+
+    full_text = ""
+    chapters = book_json.get("chapters", [])
+    for chapter in chapters:
+        content = chapter.get("content", "")
+        if content:
+            full_text += content + "\n"
+
+    if full_text.strip():
+        chunks = chunk_text(full_text)
+        for chunk in chunks:
+            chunk_embedding = await generate_embedding(chunk)
+            await insert_chunk(inserted["id"], chunk, chunk_embedding)
+
+    return {
+        "status": "book_created",
+        "id": inserted["id"],
+        "book": book_json
+    }
 
 @app.post("/ask")
 async def ask_question(payload: StoryRequest):
@@ -114,54 +153,3 @@ async def ask_question(payload: StoryRequest):
     answer = await generate_answer(payload.idea, context)
 
     return {"answer": answer, "context_used": chunks}
-
-
-@app.post("/generate-from-voice")
-async def generate_from_voice(payload: StoryRequest):
-    """
-    Handles conversational transcripts with defensive parsing and prompting.
-    """
-    print(f"🎙️ Received voice transcript: {payload.idea}")
-    
-    enhanced_prompt = (
-        "You are an AI story generator. Two users had a brainstorming conversation. "
-        "Extract their core ideas from the transcript below and write a bilingual book. "
-        "CRITICAL: You MUST strictly follow the JSON schema provided. "
-        "Ensure no trailing commas are left at the end of objects or arrays. Return ONLY valid JSON.\n\n"
-        f"TRANSCRIPT:\n{payload.idea}"
-    )
-
-    raw_output = await generate_book_json(enhanced_prompt)
-    book_json = await safe_parse_json(raw_output, enhanced_prompt)
-
-    embedding = await generate_embedding(payload.idea)
-
-    inserted = await insert_book(
-        title=book_json.get("title", "Untitled Story"),
-        summary=book_json.get("summary", "No summary generated."),
-        embedding=embedding,
-        json_content=book_json
-    )
-
-    full_text = ""
-    chapters = book_json.get("chapters", [])
-    
-    for chapter in chapters:
-        content = chapter.get("content", {})
-        english_text = content.get("english", "")
-        spanish_text = content.get("spanish", "")
-        
-        if english_text: full_text += english_text + "\n"
-        if spanish_text: full_text += spanish_text + "\n"
-
-    if full_text.strip():
-        chunks = chunk_text(full_text)
-        for chunk in chunks:
-            chunk_embedding = await generate_embedding(chunk)
-            await insert_chunk(inserted["id"], chunk, chunk_embedding)
-
-    return {
-        "status": "book_created",
-        "id": inserted["id"],
-        "book": book_json
-    }

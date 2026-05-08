@@ -23,14 +23,18 @@ async def generate_book_json(idea: str):
   "summary": "String",
   "chapters": [
     {
-      "content": {
-        "english": "String",
-        "spanish": "String"
-      }
+      "chapter_title": "String",
+      "content": "String"
     }
   ]
 }
-Create a bilingual book based on the user's idea."""
+
+Create a comprehensive, long-form English book based on the user's idea. 
+CRITICAL CONSTRAINTS:
+1. QUANTITY: Generate exactly 10 chapters. 
+2. DEPTH: Each 'content' field must be a detailed narrative of at least 500 words. 
+3. LANGUAGE: Use English only.
+4. QUALITY: Focus on world-building, sensory details, and character arcs to ensure the length is meaningful, not repetitive."""
                     },
                     {
                         "role": "user",
