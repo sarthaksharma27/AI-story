@@ -1,6 +1,6 @@
 # AI-Book
 
-A specialized Retrieval-Augmented Generation (RAG) pipeline that generates stories and provides a grounded Q&A interface.
+A speech-to-narrative pipeline that converts conversational input into structured story output.
 
 ## Setup & Environment
 
