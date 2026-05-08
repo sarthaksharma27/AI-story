@@ -11,7 +11,6 @@ const micSelect = document.getElementById('micSelect');
 const canvas = document.getElementById('visualizer');
 const canvasCtx = canvas.getContext('2d');
 
-// 1. Populate Microphone Dropdown on Load
 async function getMicrophones() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -28,12 +27,10 @@ async function getMicrophones() {
         });
     } catch (err) {
         micSelect.innerHTML = '<option value="">Microphone access denied</option>';
-        console.error("Mic access error:", err);
     }
 }
 getMicrophones();
 
-// 2. The Visualizer Drawing Function
 function drawVisualizer() {
     const width = canvas.width = canvas.offsetWidth;
     const height = canvas.height = canvas.offsetHeight;
@@ -73,7 +70,6 @@ function drawVisualizer() {
     draw();
 }
 
-// 3. The Core Recording Logic
 startBtn.onclick = async () => {
     try {
         const selectedMicId = micSelect.value;
@@ -81,7 +77,6 @@ startBtn.onclick = async () => {
             audio: { deviceId: selectedMicId ? { exact: selectedMicId } : undefined } 
         });
         
-        // Setup Visualizer
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         const source = audioContext.createMediaStreamSource(stream);
@@ -104,7 +99,6 @@ startBtn.onclick = async () => {
             transcriptDiv.innerText = "Processing audio with Deepgram and FastAPI... please wait.";
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
-            // Local playback for testing
             const audioUrl = URL.createObjectURL(audioBlob);
             const player = document.getElementById('audioPlayback');
             player.src = audioUrl;
@@ -114,7 +108,6 @@ startBtn.onclick = async () => {
             formData.append('audio', audioBlob, 'recording.webm');
 
             try {
-                // Send to Node.js backend
                 const response = await fetch('http://localhost:3000/process-audio', {
                     method: 'POST',
                     body: formData
@@ -127,44 +120,39 @@ startBtn.onclick = async () => {
 
                 const data = await response.json();
                 
-                // --- UPDATED: DISPLAY THE FULL STORY ---
-                let finalText = `📜 TRANSCRIPT:\n${data.transcript}\n\n`;
+                let finalText = `TRANSCRIPT:\n${data.transcript}\n\n`;
                 
                 if (data.book) {
                     finalText += `====================================\n`;
-                    finalText += `📚 ${data.book.title.toUpperCase()}\n`;
+                    finalText += `${data.book.title.toUpperCase()}\n`;
                     finalText += `====================================\n`;
                     finalText += `Summary: ${data.book.summary}\n\n`;
 
-                    // Senior Move: Loop through the chapters array
                     if (data.book.chapters && data.book.chapters.length > 0) {
                         data.book.chapters.forEach((chapter, index) => {
-                            finalText += `📖 CHAPTER ${index + 1}\n`;
+                            finalText += `CHAPTER ${index + 1}\n`;
                             finalText += `------------------------------------\n`;
                             
-                            // Using .get style logic in JS to prevent crashes
                             const content = chapter.content || {};
                             const english = content.english || "Text missing...";
                             const spanish = content.spanish || "Texto faltante...";
                             
-                            finalText += `🇺🇸 ${english}\n\n`;
-                            finalText += `🇪🇸 ${spanish}\n`;
+                            finalText += `${english}\n\n`;
+                            finalText += `${spanish}\n`;
                             finalText += `------------------------------------\n\n`;
                         });
                     }
-                    finalText += `✅ Story complete and saved to Vector DB.`;
+                    finalText += `Story complete and saved to Vector DB.`;
                 } else if (data.error) {
-                    finalText += `❌ System Error: ${data.error}`;
+                    finalText += `System Error: ${data.error}`;
                 }
 
                 transcriptDiv.innerText = finalText;
 
             } catch (error) {
-                console.error("Frontend Fetch Error:", error);
                 transcriptDiv.innerText = "Error: " + error.message;
             }
             
-            // Release hardware
             stream.getTracks().forEach(track => track.stop());
         };
 
@@ -174,7 +162,6 @@ startBtn.onclick = async () => {
         transcriptDiv.innerText = "Recording... talk with a friend!";
         
     } catch (err) {
-        console.error("Failed to start recording:", err);
         alert("Failed to start recording. Check mic permissions.");
     }
 };

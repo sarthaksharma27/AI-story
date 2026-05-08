@@ -7,18 +7,11 @@ const app = express();
 app.use(cors());
 app.use(express.static('public')); 
 
-app.use((req, res, next) => {
-    console.log(`\n[${new Date().toLocaleTimeString()}] 🚀 Incoming ${req.method} request to ${req.url}`);
-    next();
-});
-
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/process-audio', upload.single('audio'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No audio file received" });
-
-        console.log(`Step 1: File size is ${req.file.size} bytes. Hitting Deepgram...`);
         
         const mimetype = req.file.mimetype || 'audio/webm';
         const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&mimetype=${encodeURIComponent(mimetype)}`;
@@ -53,7 +46,6 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
         });
 
         const finalTranscript = formattedTranscript.trim();
-        console.log("Step 2: Transcript formatted. Sending to FastAPI...");
         
         try {
             const fastApiUrl = 'http://127.0.0.1:8000/generate-from-voice'; 
@@ -66,11 +58,9 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
             if (!aiResponse.ok) throw new Error(`FastAPI returned ${aiResponse.status}`);
             const storyData = await aiResponse.json();
             
-            console.log("✅ Step 3: FastAPI generated the book!");
             res.json({ status: 'success', transcript: finalTranscript, book: storyData.book });
 
         } catch (fastApiError) {
-            console.error("❌ Failed to reach FastAPI:", fastApiError);
             res.status(500).json({ 
                 status: 'partial_success', 
                 transcript: finalTranscript,
@@ -79,9 +69,8 @@ app.post('/process-audio', upload.single('audio'), async (req, res) => {
         }
 
     } catch (err) {
-        console.error("❌ BACKEND ERROR:", err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
-app.listen(3000, () => console.log(`\n✅ Voice Bridge backend running at http://localhost:3000`));
+app.listen(3000);
