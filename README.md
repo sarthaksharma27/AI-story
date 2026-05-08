@@ -238,4 +238,7 @@ This reduces hallucination and ensures answers are derived strictly from generat
 - **Stateless APIs** – Horizontal scaling ready  
 - **Retrieval Grounding** – Prevents hallucinated responses  
 - **Defensive Parsing** – Protects against malformed LLM output  
-- **Extensible Design** – Additional languages or models can be integrated without refactoring core services  
+- **Extensible Design** – Additional languages or models can be integrated without refactoring core services
+
+## License
+Distributed under the MIT License. See `LICENSE` for more information.
