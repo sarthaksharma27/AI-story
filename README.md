@@ -1,4 +1,4 @@
-# AI-Book
+# conversational-story-ai
 
 A speech-to-narrative pipeline that converts conversational input into structured story output.
 
