@@ -1,4 +1,5 @@
-<img width="1000" height="400" alt="image" src="https://github.com/user-attachments/assets/b67e017c-becd-49de-ac97-9abeec9ad54b" />
+<img width="1060" height="401" alt="image" src="https://github.com/user-attachments/assets/9ce415ab-6703-4a41-b3de-1b0d933b81f5" />
+
 
 <p align="center">
   <strong>Turn conversations into stories instantly</strong>
