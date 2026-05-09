@@ -27,7 +27,7 @@ This project is structured as a **Monorepo**, separating the frontend, voice pro
 | **Core AI API** | `apps/api-python/` | FastAPI / Python | `http://localhost:8000` |
 
 ```text
-my-monorepo/
+conversational-story-ai/
 ├── apps/
 │   ├── frontend/            # UI and Next.js React components
 │   ├── api-node/       # Handles audio streams and Deepgram integration
