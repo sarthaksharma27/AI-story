@@ -1,14 +1,20 @@
-# conversational-story-ai
+<img width="1000" height="400" alt="image" src="https://github.com/user-attachments/assets/b67e017c-becd-49de-ac97-9abeec9ad54b" />
 
-> **Note:** This is an early MVP built in ~4 hours to validate the core architecture and workflow.  
+<p align="center">
+  <strong>Turn conversations into stories instantly</strong>
+</p>
+
+<p align="center">
+  <i>A speech-to-narrative pipeline that converts conversational input into structured story output.<i>
+</p>
+
+
+
+> **Note:** This is an early MVP built in 4 hours to validate the core architecture and workflow.  
 > It is not production-ready, and several core features are still under active development.
-
-If you see areas for improvement or believe you can add value, feel free to open a PR.  
+> If you see areas for improvement or believe you can add value, feel free to open a PR.  
 All contributions are reviewed thoughtfully.
 
----
-
-A speech-to-narrative pipeline that converts conversational input into structured story output.
 
 ## Setup & Environment
 
@@ -20,10 +26,14 @@ SUPABASE_KEY=your_supabase_anon_key
 OPENROUTER_API_KEY=your_openrouter_key
 ```
 
+You can generate a Openrouter API key here: [Openrouter](https://openrouter.ai)
+
 Create a .env file in the voice/ directory:
 ```env
 DEEPGRAM_API_KEY=your_key_here
 ```
+
+You can generate a Deepgram API key here: [Deepgram](https://deepgram.com)
 
 ### 2. Installation
 ```bash
@@ -54,8 +64,7 @@ node server.js
 ## How to Test
 
 ### 1. Voice - Collaborative Storytelling
-Feature Overview: Two users brainstorm a story using their microphones.
-Processing Pipeline: The system performs speaker diarization, speech-to-text transcription, and sends the result to the Python AI engine to generate the story.
+Feature Overview: Two users brainstorm a story and the system performs speaker diarization, speech-to-text transcription, and sends the result to the Python AI engine to generate the story.
 
 **Steps to Run**
 - Ensure the **FastAPI server** is running on **port 8000**
@@ -68,13 +77,14 @@ Processing Pipeline: The system performs speaker diarization, speech-to-text tra
   - ✅ **Speaker transcript**
   - ✅ **Generated story**
 
----
+> [!TIP]
+> Avoid talking over each other. Clear turn-taking improves speaker diarization, transcript accuracy, and overall story quality.
 
 ## 🔊 Narration (Coming Soon)
 
 ### CLI – Ingest / Generate a Story
 
-Generates a story (**English or Spanish**) and indexes it into the **vector database** for retrieval.
+Generates a story and indexes it into the **vector database** for retrieval.
 
 #### Endpoint
 `POST /generate`
@@ -127,6 +137,9 @@ This separation allows independent scaling, easier debugging, and clean onboardi
 
 ### 1. High-Level Flow
 
+<img width="1096" height="484" alt="image" src="https://github.com/user-attachments/assets/9b711715-e14d-4a7a-9c75-7bdec48d7e5e" />
+
+
 - The **Frontend** captures voice input from the browser  
 - Audio is sent to the **Audio Gateway (Node.js microservice)**  
 - Transcription and diarization are handled via **Deepgram STT**
@@ -175,24 +188,7 @@ This service contains no audio logic — only AI orchestration.
 
 ---
 
-### 4. Resilient Ingestion Layer
-
-LLM outputs are inherently unpredictable. The backend implements defensive strategies:
-
-- **Self-Healing JSON**
-  - Uses `dirtyjson` to repair malformed JSON
-  - Handles trailing commas, formatting errors, and minor structural issues
-
-- **Defensive Parsing**
-  - Uses `.get()` access patterns
-  - Prevents `KeyError` crashes
-  - Ensures partial outputs do not break the pipeline
-
-This prevents a single malformed response from taking down the service.
-
----
-
-### 5. Semantic Retrieval & Grounded Q&A (RAG)
+### 4. Semantic Retrieval & Grounded Q&A (RAG)
 
 The system does not use keyword matching.
 
@@ -231,14 +227,6 @@ This reduces hallucination and ensures answers are derived strictly from generat
 - **OpenRouter** – LLM routing and orchestration  
 
 ---
-
-## Architectural Principles
-
-- **Service Isolation** – Audio, AI, and retrieval are decoupled  
-- **Stateless APIs** – Horizontal scaling ready  
-- **Retrieval Grounding** – Prevents hallucinated responses  
-- **Defensive Parsing** – Protects against malformed LLM output  
-- **Extensible Design** – Additional languages or models can be integrated without refactoring core services
 
 ## License
 Distributed under the MIT License. See `LICENSE` for more information.
