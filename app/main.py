@@ -10,7 +10,7 @@ from app.db import (
 )
 from app.chunking import chunk_text
 import json
-import dirtyjson  # Use this for resilient JSON parsing
+import dirtyjson 
 
 app = FastAPI(title="AI Bilingual Book Engine")
 
@@ -36,10 +36,9 @@ async def safe_parse_json(raw_output: str, prompt: str):
     """
     cleaned = clean_llm_output(raw_output)
     try:
-        # dirtyjson is much more forgiving than standard json.loads
         return dirtyjson.loads(cleaned)
     except Exception as e:
-        print(f"⚠️ Primary JSON parse failed: {e}. Retrying LLM...")
+        print(f"Primary JSON parse failed: {e}. Retrying LLM...")
         
         # Retry logic
         raw_retry = await generate_book_json(prompt)
@@ -47,7 +46,7 @@ async def safe_parse_json(raw_output: str, prompt: str):
         try:
             return dirtyjson.loads(cleaned_retry)
         except Exception as e_final:
-            print(f"❌ Critical: LLM failed twice to produce valid JSON: {e_final}")
+            print(f"Critical: LLM failed twice to produce valid JSON: {e_final}")
             # Return a minimal valid structure to prevent backend crash
             return {
                 "title": "Generation Error",
@@ -102,7 +101,7 @@ async def generate_book(payload: StoryRequest):
 
 @app.post("/generate-from-voice")
 async def generate_from_voice(payload: StoryRequest):
-    print(f"🎙️ Received voice transcript: {payload.idea}")
+    print(f"Received voice transcript: {payload.idea}")
     
     enhanced_prompt = (
         "You are an AI story generator. Extract the core ideas from the transcript "
