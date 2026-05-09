@@ -137,6 +137,9 @@ This separation allows independent scaling, easier debugging, and clean onboardi
 
 ### 1. High-Level Flow
 
+<img width="1096" height="484" alt="image" src="https://github.com/user-attachments/assets/9b711715-e14d-4a7a-9c75-7bdec48d7e5e" />
+
+
 - The **Frontend** captures voice input from the browser  
 - Audio is sent to the **Audio Gateway (Node.js microservice)**  
 - Transcription and diarization are handled via **Deepgram STT**
