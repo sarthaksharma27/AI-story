@@ -1,14 +1,20 @@
-# conversational-story-ai
+<img width="1000" height="400" alt="image" src="https://github.com/user-attachments/assets/b67e017c-becd-49de-ac97-9abeec9ad54b" />
 
-> **Note:** This is an early MVP built in ~4 hours to validate the core architecture and workflow.  
+<p align="center">
+  <strong>Turn conversations into stories instantly</strong>
+</p>
+
+<p align="center">
+  <i>A speech-to-narrative pipeline that converts conversational input into structured story output.<i>
+</p>
+
+
+
+> **Note:** This is an early MVP built in 4 hours to validate the core architecture and workflow.  
 > It is not production-ready, and several core features are still under active development.
-
-If you see areas for improvement or believe you can add value, feel free to open a PR.  
+> If you see areas for improvement or believe you can add value, feel free to open a PR.  
 All contributions are reviewed thoughtfully.
 
----
-
-A speech-to-narrative pipeline that converts conversational input into structured story output.
 
 ## Setup & Environment
 
@@ -54,8 +60,7 @@ node server.js
 ## How to Test
 
 ### 1. Voice - Collaborative Storytelling
-Feature Overview: Two users brainstorm a story using their microphones.
-Processing Pipeline: The system performs speaker diarization, speech-to-text transcription, and sends the result to the Python AI engine to generate the story.
+Feature Overview: Two users brainstorm a story and the system performs speaker diarization, speech-to-text transcription, and sends the result to the Python AI engine to generate the story.
 
 **Steps to Run**
 - Ensure the **FastAPI server** is running on **port 8000**
@@ -68,13 +73,14 @@ Processing Pipeline: The system performs speaker diarization, speech-to-text tra
   - ✅ **Speaker transcript**
   - ✅ **Generated story**
 
----
+> [!TIP]
+> Avoid talking over each other. Clear turn-taking improves speaker diarization, transcript accuracy, and overall story quality.
 
 ## 🔊 Narration (Coming Soon)
 
 ### CLI – Ingest / Generate a Story
 
-Generates a story (**English or Spanish**) and indexes it into the **vector database** for retrieval.
+Generates a story and indexes it into the **vector database** for retrieval.
 
 #### Endpoint
 `POST /generate`
