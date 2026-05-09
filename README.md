@@ -188,24 +188,7 @@ This service contains no audio logic — only AI orchestration.
 
 ---
 
-### 4. Resilient Ingestion Layer
-
-LLM outputs are inherently unpredictable. The backend implements defensive strategies:
-
-- **Self-Healing JSON**
-  - Uses `dirtyjson` to repair malformed JSON
-  - Handles trailing commas, formatting errors, and minor structural issues
-
-- **Defensive Parsing**
-  - Uses `.get()` access patterns
-  - Prevents `KeyError` crashes
-  - Ensures partial outputs do not break the pipeline
-
-This prevents a single malformed response from taking down the service.
-
----
-
-### 5. Semantic Retrieval & Grounded Q&A (RAG)
+### 4. Semantic Retrieval & Grounded Q&A (RAG)
 
 The system does not use keyword matching.
 
@@ -244,14 +227,6 @@ This reduces hallucination and ensures answers are derived strictly from generat
 - **OpenRouter** – LLM routing and orchestration  
 
 ---
-
-## Architectural Principles
-
-- **Service Isolation** – Audio, AI, and retrieval are decoupled  
-- **Stateless APIs** – Horizontal scaling ready  
-- **Retrieval Grounding** – Prevents hallucinated responses  
-- **Defensive Parsing** – Protects against malformed LLM output  
-- **Extensible Design** – Additional languages or models can be integrated without refactoring core services
 
 ## License
 Distributed under the MIT License. See `LICENSE` for more information.
