@@ -26,10 +26,14 @@ SUPABASE_KEY=your_supabase_anon_key
 OPENROUTER_API_KEY=your_openrouter_key
 ```
 
+You can generate a Openrouter API key here: [Openrouter](https://openrouter.ai)
+
 Create a .env file in the voice/ directory:
 ```env
 DEEPGRAM_API_KEY=your_key_here
 ```
+
+You can generate a Deepgram API key here: [Deepgram](https://deepgram.com)
 
 ### 2. Installation
 ```bash
