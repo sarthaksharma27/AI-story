@@ -16,11 +16,31 @@
 > If you see areas for improvement or believe you can add value, feel free to open a PR.  
 All contributions are reviewed thoughtfully.
 
+## 🏗️ Architecture & Folder Structure
 
-## Setup & Environment
+This project is structured as a **Monorepo**, separating the frontend, voice processing, and core AI engine into distinct applications.
+
+| Service | Directory | Tech Stack | Local URL |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | `apps/frontend/` | Next.js | `http://localhost:3000` |
+| **Voice API** | `apps/api-node/` | Node.js / Express | `http://localhost:3001` |
+| **Core AI API** | `apps/api-python/` | FastAPI / Python | `http://localhost:8000` |
+
+```text
+my-monorepo/
+├── apps/
+│   ├── frontend/            # UI and Next.js React components
+│   ├── api-node/       # Handles audio streams and Deepgram integration
+│   └── api-python/     # Handles LLM generation, Chunking, and Database
+└── package.json        # Root workspace configuration
+```
+
+## ⚙️ Environment Variables
+
+Because the services are isolated, each requires its own environment file. Do not put a .env file in the root directory.
 
 ### 1. Environment Variables
-Create a `.env` file in the root directory:
+Create a `.env` file inside apps/api-python/
 ```env
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_key
@@ -29,37 +49,60 @@ OPENROUTER_API_KEY=your_openrouter_key
 
 You can generate a Openrouter API key here: [Openrouter](https://openrouter.ai)
 
-Create a .env file in the voice/ directory:
+Create a `.env` file inside apps/api-node/
 ```env
 DEEPGRAM_API_KEY=your_key_here
 ```
 
 You can generate a Deepgram API key here: [Deepgram](https://deepgram.com)
 
-### 2. Installation
-```bash
-# Setup Python Backend
-python -m venv venv
-source venv/Scripts/activate # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+### 2. Installation & Setup
 
-# Setup Node.js Voice Bridge
-cd voice
+From the root of your project, install dependencies for both the Next.js frontend and the Node.js backend using NPM workspaces:
+```bash
 npm install
 ```
 
-### 3. Start the Services
-You must run both servers simultaneously to use the voice features:
-
-Terminal 1 (FastAPI):
+Navigate to the Python directory, create a virtual environment, and install dependencies:
 ```bash
-uvicorn app.main:app --reload
+cd apps/api-python
+
+# Create Virtual Environment
+python -m venv venv
+
+# Activate it (Windows)
+.\venv\Scripts\activate
+# OR Activate it (Mac/Linux)
+source venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
 ```
 
-Terminal 2 (Node.js):
+
+### Starting the Services
+You must run all three servers simultaneously for the application to function end-to-end. Open three separate terminal tabs:
+
+Terminal 1 (Next.js Frontend):
 ```bash
-cd voice
-node server.js
+# Start from the root directory using the workspace script
+npm run dev:web
+# Or manually: cd apps/web && npm run dev
+```
+
+Terminal 2 (Node.js Voice API):
+```bash
+# Start from the root directory using the workspace script
+npm run dev:node
+# Or manually: cd apps/api-node && node server.js
+```
+
+Terminal 3 (FastAPI):
+```bash
+cd apps/api-python
+# Ensure your virtual environment is activated!
+.\venv\Scripts\activate   # (Windows)
+uvicorn main:app --reload --port 8000
 ```
 
 ## How to Test
